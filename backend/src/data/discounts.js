@@ -14,7 +14,6 @@
 //   products:      productId                       e.g. 'bs-1'
 module.exports = {
   categories: {
-    bedsheets: { type: 'percent', value: 25 },
     blankets: { type: 'percent', value: 25 },
   },
   // subcategories: {
