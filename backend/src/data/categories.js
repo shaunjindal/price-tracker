@@ -4,9 +4,8 @@ module.exports = [
     id: 'bedsheets',
     name: 'Bedsheets',
     subcategories: [
-      { id: 'cotton', name: 'Cotton' },
-      { id: 'microfiber', name: 'Microfiber' },
-      { id: 'printed', name: 'Printed' },
+      { id: 'single-bedsheet', name: 'Single Bed' },
+      { id: 'double-bed', name: 'Double Bed' }
     ],
   },
   {
