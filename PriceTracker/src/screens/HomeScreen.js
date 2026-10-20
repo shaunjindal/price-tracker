@@ -32,11 +32,11 @@ export default function HomeScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Our Catalogue</Text>
+        <Text style={styles.title}>Maa Handloom</Text>
         <SearchBar value={query} onChangeText={setQuery} />
       </View>
-
-      <ChipRow items={categories} selectedId={categoryId} onSelect={selectCategory} />
+<View style={styles.subRow}><ChipRow items={categories} selectedId={categoryId} onSelect={selectCategory} /></View>
+      
       {subcategories.length > 0 && (
         <View style={styles.subRow}>
           <ChipRow

@@ -7,6 +7,9 @@ export const colors = {
   muted: '#6B7280',
   border: '#E5E7EB',
   danger: '#DC2626',
+  sale: '#E11D48',
+  saleSoft: '#DCFCE7',
+  saleText: '#15803D',
 };
 
 export const spacing = { xs: 4, sm: 8, md: 16, lg: 24 };

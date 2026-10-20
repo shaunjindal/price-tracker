@@ -1,4 +1,5 @@
 const products = require('../data/products');
+const { applyPricing } = require('./pricingService');
 
 const matchesKeywords = (product, q) => {
   // every word typed must appear somewhere in name, description or detail values
@@ -18,12 +19,17 @@ const matchesKeywords = (product, q) => {
 };
 
 exports.search = ({ q, category, subcategory } = {}) => {
-  return products.filter((p) => {
-    if (category && p.categoryId !== category) return false;
-    if (subcategory && p.subcategoryId !== subcategory) return false;
-    if (q && !matchesKeywords(p, q)) return false;
-    return true;
-  });
+  return products
+    .filter((p) => {
+      if (category && p.categoryId !== category) return false;
+      if (subcategory && p.subcategoryId !== subcategory) return false;
+      if (q && !matchesKeywords(p, q)) return false;
+      return true;
+    })
+    .map(applyPricing);
 };
 
-exports.getById = (id) => products.find((p) => p.id === id);
+exports.getById = (id) => {
+  const product = products.find((p) => p.id === id);
+  return product ? applyPricing(product) : undefined;
+};
