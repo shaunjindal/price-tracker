@@ -10,6 +10,7 @@ export const colors = {
   sale: '#E11D48',
   saleSoft: '#DCFCE7',
   saleText: '#15803D',
+  whatsapp: '#128C7E',
 };
 
 export const spacing = { xs: 4, sm: 8, md: 16, lg: 24 };

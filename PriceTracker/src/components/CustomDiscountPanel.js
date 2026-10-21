@@ -5,9 +5,15 @@ import { colors, radius, spacing } from '../theme';
 
 const QUICK = [5, 10, 15, 20, 25];
 
-// Lets a worker type a percentage (or tap a quick chip) to see a custom price.
+// Lets a worker type a percentage (or tap a quick chip) to set a custom price.
 // `value` is the applied percent (or null). Parent owns the state.
-export default function CustomDiscountPanel({ value, onApply, onReset }) {
+export default function CustomDiscountPanel({
+  value,
+  onApply,
+  onReset,
+  title = 'Custom discount',
+  hint = 'Applied on the original price.',
+}) {
   const [text, setText] = useState(value ? String(value) : '');
   const [error, setError] = useState('');
 
@@ -30,8 +36,8 @@ export default function CustomDiscountPanel({ value, onApply, onReset }) {
 
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>Custom discount</Text>
-      <Text style={styles.hint}>Applied on the original price. Only visible on this screen.</Text>
+      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.hint}>{hint}</Text>
 
       <View style={styles.inputRow}>
         <View style={styles.inputBox}>

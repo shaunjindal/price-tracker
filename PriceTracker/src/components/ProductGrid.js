@@ -1,9 +1,16 @@
-import { FlatList, StyleSheet } from 'react-native';
+import { FlatList } from 'react-native';
 import ProductCard from './ProductCard';
 import StateView from './StateView';
 import { spacing } from '../theme';
 
-export default function ProductGrid({ products, loading, error, onRetry, onProductPress }) {
+export default function ProductGrid({
+  products,
+  loading,
+  error,
+  onRetry,
+  onProductPress,
+  bottomPadding = spacing.lg,
+}) {
   if (loading) return <StateView type="loading" />;
   if (error) {
     return <StateView type="error" message={error} actionLabel="Retry" onAction={onRetry} />;
@@ -14,7 +21,7 @@ export default function ProductGrid({ products, loading, error, onRetry, onProdu
       data={products}
       numColumns={2}
       keyExtractor={(p) => p.id}
-      contentContainerStyle={styles.list}
+      contentContainerStyle={{ padding: spacing.sm, paddingBottom: bottomPadding }}
       renderItem={({ item }) => (
         <ProductCard product={item} onPress={() => onProductPress(item)} />
       )}
@@ -25,7 +32,3 @@ export default function ProductGrid({ products, loading, error, onRetry, onProdu
     />
   );
 }
-
-const styles = StyleSheet.create({
-  list: { padding: spacing.sm, paddingBottom: spacing.lg },
-});

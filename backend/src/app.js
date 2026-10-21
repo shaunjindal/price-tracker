@@ -3,6 +3,7 @@ const cors = require('cors');
 const routes = require('./routes');
 
 const app = express();
+app.set('trust proxy', 1); // behind Render's proxy
 app.use(cors());
 app.use(express.json());
 
