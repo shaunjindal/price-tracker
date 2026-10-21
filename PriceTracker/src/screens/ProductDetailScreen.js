@@ -7,7 +7,7 @@ import DetailRow from '../components/DetailRow';
 import CustomDiscountPanel from '../components/CustomDiscountPanel';
 import QuantityStepper from '../components/QuantityStepper';
 import { useOrder } from '../context/OrderContext';
-import { getLinePricing } from '../utils/orderMath';
+import { getUnitPricing } from '../utils/orderMath';
 import { colors, radius, spacing } from '../theme';
 
 export default function ProductDetailScreen({ route, navigation }) {
@@ -18,13 +18,14 @@ export default function ProductDetailScreen({ route, navigation }) {
   // If this product is already in the order, start from its current qty/discount.
   const existing = items.find((i) => i.product.id === product.id);
   const [qty, setQty] = useState(existing?.qty ?? 1);
-  const [customDiscount, setCustomDiscount] = useState(existing?.customDiscount ?? null);
+  const [customPercent, setCustomPercent] = useState(existing?.customPercent ?? null);
 
   const entries = Object.entries(product.details);
-  const pricing = getLinePricing({ product, qty, customDiscount });
+  const { unitPrice, discount, isCustom } = getUnitPricing({ product, customPercent });
+  const lineTotal = unitPrice * qty;
 
   const submit = () => {
-    setItem(product, qty, customDiscount);
+    setItem(product, qty, customPercent);
     navigation.goBack();
   };
 
@@ -33,25 +34,22 @@ export default function ProductDetailScreen({ route, navigation }) {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View>
           <Image source={{ uri: product.image }} style={styles.image} />
-          <DiscountBadge label={pricing.label} style={styles.badge} />
+          <DiscountBadge discount={discount} style={styles.badge} />
         </View>
         <Text style={styles.name}>{product.name}</Text>
-        <PriceTag price={product.price} salePrice={pricing.unitPrice} size={26} />
-        {pricing.lineSavings > 0 && (
+        <PriceTag price={product.price} salePrice={unitPrice} size={26} />
+        {discount && discount.savings > 0 && (
           <View style={styles.saveBox}>
             <Text style={styles.saveText}>
-              {pricing.isCustom ? 'Custom discount: ' : ''}You save {formatPrice(pricing.lineSavings)}
-              {qty > 1 ? ` on ${qty.toLocaleString('en-IN')} pcs` : ''} ({pricing.percentOff}% off)
+              {isCustom ? 'Custom discount: ' : ''}You save {formatPrice(discount.savings)} ({discount.percentOff}% off)
             </Text>
           </View>
         )}
 
         <CustomDiscountPanel
-          product={product}
-          qty={qty}
-          value={customDiscount}
-          onApply={setCustomDiscount}
-          onReset={() => setCustomDiscount(null)}
+          value={customPercent}
+          onApply={setCustomPercent}
+          onReset={() => setCustomPercent(null)}
         />
 
         <Text style={styles.description}>{product.description}</Text>
@@ -68,7 +66,7 @@ export default function ProductDetailScreen({ route, navigation }) {
         <QuantityStepper value={qty} onChange={setQty} />
         <TouchableOpacity style={styles.addBtn} onPress={submit} activeOpacity={0.9}>
           <Text style={styles.addText}>
-            {existing ? 'Update order' : 'Add to order'} · {formatPrice(pricing.lineTotal)}
+            {existing ? 'Update order' : 'Add to order'} · {formatPrice(lineTotal)}
           </Text>
         </TouchableOpacity>
       </View>

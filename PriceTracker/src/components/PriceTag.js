@@ -1,8 +1,11 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { colors } from '../theme';
-import { formatMoney } from '../utils/money';
 
-export const formatPrice = formatMoney;
+export const formatPrice = (price) => {
+  const x = Number(price);
+  const digits = Number.isInteger(x) ? 0 : 2; // 249.5 -> ₹249.50
+  return `₹${x.toLocaleString('en-IN', { minimumFractionDigits: digits, maximumFractionDigits: 2 })}`;
+};
 
 // Shows the sale price, with the original price struck through when slashed.
 // All numbers come from the backend (price, salePrice).
