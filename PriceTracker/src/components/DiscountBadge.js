@@ -2,16 +2,21 @@ import { Text, View, StyleSheet } from 'react-native';
 import { colors, radius } from '../theme';
 import { formatPrice } from './PriceTag';
 
-// Small "20% OFF" pill. Renders nothing when there is no discount.
-export default function DiscountBadge({ discount, style }) {
-  if (!discount) return null;
-  const label = discount.percentOff > 0
-    ? `${discount.percentOff}% OFF`
-    : `${formatPrice(discount.savings)} OFF`;
+// Small "20% OFF" / "₹100 OFF" pill. Renders nothing when there is no discount.
+// Pass `label` directly, or a backend `discount` object.
+export default function DiscountBadge({ discount, label, style }) {
+  const text =
+    label ??
+    (discount
+      ? discount.percentOff > 0
+        ? `${discount.percentOff}% OFF`
+        : `${formatPrice(discount.savings)} OFF`
+      : null);
+  if (!text) return null;
 
   return (
     <View style={[styles.badge, style]}>
-      <Text style={styles.text}>{label}</Text>
+      <Text style={styles.text}>{text}</Text>
     </View>
   );
 }

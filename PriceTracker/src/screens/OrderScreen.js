@@ -78,10 +78,11 @@ export default function OrderScreen({ navigation }) {
         {editing && (
           <CustomDiscountPanel
             key={editing.product.id}
-            value={editing.customPercent}
-            hint="Applied on this item's original price. Other items are not affected."
-            onApply={(p) => {
-              setDiscount(editing.product.id, p);
+            product={editing.product}
+            qty={editing.qty}
+            value={editing.customDiscount}
+            onApply={(d) => {
+              setDiscount(editing.product.id, d);
               closeEditor();
             }}
             onReset={() => {

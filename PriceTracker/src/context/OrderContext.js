@@ -12,8 +12,8 @@ export function OrderProvider({ children }) {
     () => ({
       items,
       totals: getOrderTotals(items),
-      setItem: (product, qty, customPercent) =>
-        dispatch({ type: 'SET_ITEM', product, qty, customPercent }),
+      setItem: (product, qty, customDiscount) =>
+        dispatch({ type: 'SET_ITEM', product, qty, customDiscount }),
       // Manual items are normal order lines with a generated product (no discount).
       addManualItem: ({ name, price, qty }) => {
         manualCounter += 1;
@@ -28,10 +28,10 @@ export function OrderProvider({ children }) {
           image: null,
           isManual: true,
         };
-        dispatch({ type: 'SET_ITEM', product, qty, customPercent: null });
+        dispatch({ type: 'SET_ITEM', product, qty, customDiscount: null });
       },
       setQty: (id, qty) => dispatch({ type: 'SET_QTY', id, qty }),
-      setDiscount: (id, customPercent) => dispatch({ type: 'SET_DISCOUNT', id, customPercent }),
+      setDiscount: (id, customDiscount) => dispatch({ type: 'SET_DISCOUNT', id, customDiscount }),
       removeItem: (id) => dispatch({ type: 'REMOVE', id }),
       clear: () => dispatch({ type: 'CLEAR' }),
     }),

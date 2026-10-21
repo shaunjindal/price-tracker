@@ -2,16 +2,22 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import PriceTag, { formatPrice } from './PriceTag';
 import DiscountBadge from './DiscountBadge';
 import QuantityStepper from './QuantityStepper';
-import { getUnitPricing, getLineTotal } from '../utils/orderMath';
+import { getLinePricing } from '../utils/orderMath';
 import { colors, radius, spacing } from '../theme';
 
 // One line of the order: image, name, unit price, qty stepper, line total.
 // Catalogue items can also get a custom discount (for THIS line only).
 // Manual items have no image and no discount.
 export default function OrderItemRow({ item, onQtyChange, onEditDiscount, onRemove }) {
-  const { product, qty, customPercent } = item;
-  const { unitPrice, discount, isCustom } = getUnitPricing(item);
+  const { product, qty, customDiscount: d } = item;
+  const { unitPrice, lineTotal, lineSavings, label, isCustom } = getLinePricing(item);
   const [firstKey, firstValue] = Object.entries(product.details)[0] || [];
+
+  // "4 × ₹899 − ₹100" for a flat whole-item amount, otherwise "4 × ₹749"
+  const calc =
+    d?.type === 'amount' && d.scope === 'total'
+      ? `${qty.toLocaleString('en-IN')} × ${formatPrice(product.price)} − ${formatPrice(lineSavings)}`
+      : `${qty.toLocaleString('en-IN')} × ${formatPrice(unitPrice)}`;
 
   return (
     <View style={styles.card}>
@@ -32,7 +38,7 @@ export default function OrderItemRow({ item, onQtyChange, onEditDiscount, onRemo
           ) : null}
           <View style={styles.priceRow}>
             <PriceTag price={product.price} salePrice={unitPrice} size={15} />
-            <DiscountBadge discount={discount} />
+            <DiscountBadge label={label} />
           </View>
         </View>
         <TouchableOpacity onPress={onRemove} hitSlop={10}>
@@ -43,8 +49,8 @@ export default function OrderItemRow({ item, onQtyChange, onEditDiscount, onRemo
       <View style={styles.bottom}>
         <QuantityStepper value={qty} onChange={onQtyChange} compact />
         <View style={styles.totalBox}>
-          <Text style={styles.total}>{formatPrice(getLineTotal(item))}</Text>
-          <Text style={styles.calc}>{qty.toLocaleString('en-IN')} × {formatPrice(unitPrice)}</Text>
+          <Text style={styles.total}>{formatPrice(lineTotal)}</Text>
+          <Text style={styles.calc}>{calc}</Text>
         </View>
       </View>
 
@@ -55,7 +61,7 @@ export default function OrderItemRow({ item, onQtyChange, onEditDiscount, onRemo
           activeOpacity={0.8}
         >
           <Text style={[styles.discText, isCustom && styles.discTextActive]}>
-            {isCustom ? `Custom discount ${customPercent}% · Edit` : '％  Add custom discount'}
+            {isCustom ? `Discount: ${label?.toLowerCase() ?? 'applied'} · Edit` : '％ ₹  Give discount'}
           </Text>
         </TouchableOpacity>
       )}
