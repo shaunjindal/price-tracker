@@ -15,7 +15,7 @@ const cleanText = (value, max = 80) =>
 
 // Expects [{ name, qty, unitPrice, originalUnitPrice?, lineTotal? }]
 // lineTotal is what the customer pays for the whole line. It differs from
-// unitPrice x qty when a flat amount was taken off the whole item.
+// unitPrice x qty when a price was agreed for the whole item (not per piece).
 exports.parseItems = (raw) => {
   if (!Array.isArray(raw) || raw.length === 0) throw new HttpError(400, 'The order has no items');
   if (raw.length > MAX_ITEMS) throw new HttpError(400, `An order can have at most ${MAX_ITEMS} items`);
@@ -40,7 +40,7 @@ exports.parseItems = (raw) => {
       name: cleanText(it?.name) || 'Custom item',
       qty,
       unitPrice: round2(unitPrice),
-      originalUnitPrice: round2(Number.isFinite(original) ? Math.max(original, unitPrice) : unitPrice),
+      originalUnitPrice: round2(Number.isFinite(original) && original >= 0 ? original : unitPrice),
       lineTotal,
     };
   });
@@ -69,9 +69,12 @@ exports.buildTextMessage = (items, totals, businessName) => {
 
   for (const [i, it] of items.entries()) {
     const b = base(it);
-    let block = `${i + 1}. ${it.name}\n    ${it.qty} × ${inr(it.unitPrice)} = ${inr(b)}`;
-    if (it.lineTotal < b) block += `\n    Discount -${inr(round2(b - it.lineTotal))} → ${inr(it.lineTotal)}`;
-    else if (it.lineTotal > b) block = `${i + 1}. ${it.name}\n    ${it.qty} × ${inr(it.unitPrice)} = ${inr(it.lineTotal)}`;
+    // normal: "4 × ₹800 = ₹3,200"   price agreed for the whole item: "3 pcs = ₹2,600"
+    const detail =
+      b === it.lineTotal
+        ? `${it.qty} × ${inr(it.unitPrice)} = ${inr(b)}`
+        : `${it.qty} pcs = ${inr(it.lineTotal)}`;
+    const block = `${i + 1}. ${it.name}\n    ${detail}`;
     if (used + block.length > LIMIT) break;
     lines.push(block);
     used += block.length + 1;
@@ -95,9 +98,10 @@ exports.buildTemplateParams = (items, totals) => {
   let used = 0;
   for (const [i, it] of items.entries()) {
     const b = base(it);
-    let part = `${i + 1}) ${it.name} x${it.qty} @ ${inr(it.unitPrice)} = ${inr(b)}`;
-    if (it.lineTotal < b) part += ` (after discount ${inr(it.lineTotal)})`;
-    else if (it.lineTotal > b) part = `${i + 1}) ${it.name} x${it.qty} = ${inr(it.lineTotal)}`;
+    const part =
+      b === it.lineTotal
+        ? `${i + 1}) ${it.name} x${it.qty} @ ${inr(it.unitPrice)} = ${inr(b)}`
+        : `${i + 1}) ${it.name} x${it.qty} = ${inr(it.lineTotal)}`;
     if (used + part.length + 3 > LIMIT) break;
     parts.push(part);
     used += part.length + 3;

@@ -1,5 +1,5 @@
-// Order state = array of lines: { product, qty, customDiscount }
-// customDiscount: null | { type: 'percent', value } | { type: 'amount', value, scope: 'each' | 'total' }
+// Order state = array of lines: { product, qty, customPricing }
+// customPricing: null | { type: 'percent', value } | { type: 'price', value, scope: 'each' | 'total' }
 // One line per product.
 export function orderReducer(items, action) {
   switch (action.type) {
@@ -7,7 +7,7 @@ export function orderReducer(items, action) {
       const line = {
         product: action.product,
         qty: action.qty,
-        customDiscount: action.customDiscount ?? null,
+        customPricing: action.customPricing ?? null,
       };
       const exists = items.some((i) => i.product.id === action.product.id);
       return exists
@@ -16,9 +16,9 @@ export function orderReducer(items, action) {
     }
     case 'SET_QTY':
       return items.map((i) => (i.product.id === action.id ? { ...i, qty: action.qty } : i));
-    case 'SET_DISCOUNT':
+    case 'SET_PRICING':
       return items.map((i) =>
-        i.product.id === action.id ? { ...i, customDiscount: action.customDiscount ?? null } : i
+        i.product.id === action.id ? { ...i, customPricing: action.customPricing ?? null } : i
       );
     case 'REMOVE':
       return items.filter((i) => i.product.id !== action.id);

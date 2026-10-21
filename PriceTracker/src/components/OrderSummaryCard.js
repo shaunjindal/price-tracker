@@ -16,8 +16,14 @@ export default function OrderSummaryCard({ totals }) {
       <Row label="Items / Pieces" value={`${n(totals.lines)} / ${n(totals.pieces)}`} />
       <Row label="Original total" value={formatPrice(totals.original)} />
       <Row
-        label="Total discount"
-        value={totals.savings > 0 ? `− ${formatPrice(totals.savings)}` : formatPrice(0)}
+        label={totals.savings < 0 ? 'Price adjustment' : 'Total discount'}
+        value={
+          totals.savings > 0
+            ? `− ${formatPrice(totals.savings)}`
+            : totals.savings < 0
+              ? `+ ${formatPrice(-totals.savings)}`
+              : formatPrice(0)
+        }
         valueStyle={totals.savings > 0 && styles.green}
       />
       <View style={styles.divider} />

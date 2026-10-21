@@ -1,159 +1,114 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { formatPrice } from './PriceTag';
-import { buildDiscount } from '../utils/pricing';
-import { getLinePricing, round2 } from '../utils/orderMath';
+import { getLinePricing } from '../utils/orderMath';
+import { initialInput, resetInput, typeInto } from '../utils/priceInput';
 import { colors, radius, spacing } from '../theme';
 
-const QUICK = { percent: [5, 10, 15, 20, 25], amount: [20, 50, 100, 200, 500] };
-const INPUT_OK = { percent: /^\d{0,3}([.,]\d{0,2})?$/, amount: /^\d{0,8}([.,]\d{0,2})?$/ };
+// The worker decides the PRICE PER PIECE, either by typing it or by giving a % discount.
+// The total for the quantity is only calculated. Old vs New is shown for both.
+// The typed text lives only in this component's own state (so nothing can overwrite it while
+// typing); the order is told about every valid change through onChange(pricing | null).
+export default function CustomDiscountPanel({ product, qty, value, onChange, onDone, title = 'Set price' }) {
+  const [input, setInput] = useState(() => initialInput(value));
+  const { priceText, pctText, pricing, error } = input;
 
-function Segmented({ options, value, onChange }) {
-  return (
-    <View style={styles.seg}>
-      {options.map((o) => {
-        const active = o.value === value;
-        return (
-          <TouchableOpacity
-            key={o.value}
-            style={[styles.segItem, active && styles.segItemActive]}
-            onPress={() => onChange(o.value)}
-            activeOpacity={0.85}
-          >
-            <Text style={[styles.segText, active && styles.segTextActive]}>{o.label}</Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-}
+  const old = getLinePricing({ product, qty, customPricing: null });
+  const next = getLinePricing({ product, qty, customPricing: pricing });
+  const changed = Boolean(pricing);
 
-// Worker gives a discount as a percentage OR a rupee amount, and sees the result live
-// before applying. `value` is the applied discount (or null); the parent owns the state.
-export default function CustomDiscountPanel({
-  product,
-  qty,
-  value,
-  onApply,
-  onReset,
-  title = 'Give a discount',
-}) {
-  const [mode, setMode] = useState(value?.type ?? 'percent');
-  const [scope, setScope] = useState(value?.scope ?? (qty > 1 ? 'total' : 'each'));
-  const [text, setText] = useState(value ? String(value.value) : '');
-
-  const { discount: draft, error } = buildDiscount({ type: mode, text, scope }, product, qty);
-  const preview = draft ? getLinePricing({ product, qty, customDiscount: draft }) : null;
-  const before = round2(product.price * qty);
-  const showScope = mode === 'amount' && qty > 1;
-
-  const changeMode = (m) => {
-    setMode(m);
-    setText('');
+  const onType = (kind, raw) => {
+    const r = typeInto(input, kind, raw);
+    setInput(r.state);
+    if (r.changed) onChange(r.state.pricing);
   };
-  const onChangeText = (t) => {
-    if (INPUT_OK[mode].test(t)) setText(t.replace(',', '.'));
-  };
+
+  const rows = [
+    { label: qty > 1 ? 'Per piece' : 'Price', old: old.unitPrice, next: next.unitPrice },
+    ...(qty > 1
+      ? [{ label: `Total (${qty.toLocaleString('en-IN')} pcs)`, old: old.lineTotal, next: next.lineTotal }]
+      : []),
+  ];
 
   return (
     <View style={styles.card}>
       <Text style={styles.title}>{title}</Text>
 
-      <Segmented
-        value={mode}
-        onChange={changeMode}
-        options={[
-          { value: 'percent', label: '％  Percent off' },
-          { value: 'amount', label: '₹  Amount off' },
-        ]}
-      />
+      <View style={styles.fields}>
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>New price per piece</Text>
+          <View style={[styles.inputBox, error && priceText !== '' && styles.inputBoxError]}>
+            <Text style={styles.affix}>₹</Text>
+            <TextInput
+              style={styles.input}
+              value={priceText}
+              onChangeText={(t) => onType('price', t)}
+              placeholder="e.g. 800"
+              placeholderTextColor={colors.muted}
+              keyboardType="decimal-pad"
+              maxLength={11}
+            />
+          </View>
+        </View>
 
-      <View style={[styles.inputBox, error && styles.inputBoxError]}>
-        {mode === 'amount' ? <Text style={styles.affix}>₹</Text> : null}
-        <TextInput
-          style={styles.input}
-          value={text}
-          onChangeText={onChangeText}
-          placeholder={mode === 'percent' ? 'Type percent, e.g. 10' : 'Type amount, e.g. 100'}
-          placeholderTextColor={colors.muted}
-          keyboardType="decimal-pad"
-          maxLength={11}
-        />
-        {mode === 'percent' ? <Text style={styles.affix}>%</Text> : null}
+        <Text style={styles.or}>or</Text>
+
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>Discount</Text>
+          <View style={[styles.inputBox, error && pctText !== '' && styles.inputBoxError]}>
+            <TextInput
+              style={styles.input}
+              value={pctText}
+              onChangeText={(t) => onType('percent', t)}
+              placeholder="e.g. 10"
+              placeholderTextColor={colors.muted}
+              keyboardType="decimal-pad"
+              maxLength={6}
+            />
+            <Text style={styles.affix}>%</Text>
+          </View>
+        </View>
       </View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <View style={styles.chips}>
-        {QUICK[mode].map((n) => {
-          const active = text === String(n);
-          return (
-            <TouchableOpacity
-              key={n}
-              style={[styles.chip, active && styles.chipActive]}
-              onPress={() => setText(String(n))}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                {mode === 'percent' ? `${n}%` : `₹${n}`}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+      <View style={styles.table}>
+        <View style={styles.tRow}>
+          <Text style={[styles.tLabel, styles.tHead]} />
+          <Text style={[styles.tCell, styles.tHead]}>Old</Text>
+          <Text style={[styles.tCell, styles.tHead]}>New</Text>
+        </View>
+        {rows.map((r) => (
+          <View key={r.label} style={styles.tRow}>
+            <Text style={styles.tLabel}>{r.label}</Text>
+            <Text style={[styles.tCell, styles.tOld, changed && styles.tOldStruck]}>{formatPrice(r.old)}</Text>
+            <Text style={[styles.tCell, styles.tNew]}>{formatPrice(r.next)}</Text>
+          </View>
+        ))}
       </View>
-
-      {showScope && (
-        <View style={styles.scopeBox}>
-          <Text style={styles.scopeLabel}>Take this amount off:</Text>
-          <Segmented
-            value={scope}
-            onChange={setScope}
-            options={[
-              { value: 'total', label: `Whole item (${qty} pcs)` },
-              { value: 'each', label: 'Each piece' },
-            ]}
-          />
-        </View>
+      {product.price !== old.unitPrice && (
+        <Text style={styles.note}>Discount % is on the original price of {formatPrice(product.price)} per piece.</Text>
       )}
 
-      {preview && (
-        <View style={styles.preview}>
-          <View style={styles.pRow}>
-            <Text style={styles.pLabel}>Before discount</Text>
-            <Text style={styles.pValue}>{formatPrice(before)}</Text>
-          </View>
-          <View style={styles.pRow}>
-            <Text style={styles.pLabel}>Discount</Text>
-            <Text style={[styles.pValue, styles.pGreen]}>− {formatPrice(preview.lineSavings)}</Text>
-          </View>
-          <View style={styles.pDivider} />
-          <View style={styles.pRow}>
-            <Text style={styles.pTotalLabel}>New price</Text>
-            <Text style={styles.pTotal}>{formatPrice(preview.lineTotal)}</Text>
-          </View>
-          {qty > 1 && <Text style={styles.pEach}>about {formatPrice(preview.unitPrice)} per piece</Text>}
-        </View>
-      )}
-
-      <TouchableOpacity
-        style={[styles.applyBtn, !draft && styles.applyBtnOff]}
-        onPress={() => draft && onApply(draft)}
-        disabled={!draft}
-        activeOpacity={0.85}
-      >
-        <Text style={styles.applyText}>{value ? 'Update discount' : 'Apply discount'}</Text>
-      </TouchableOpacity>
-
-      {value ? (
-        <TouchableOpacity
-          onPress={() => {
-            setText('');
-            onReset();
-          }}
-          hitSlop={8}
-        >
-          <Text style={styles.reset}>Remove discount</Text>
-        </TouchableOpacity>
-      ) : null}
+      <View style={styles.actions}>
+        {changed ? (
+          <TouchableOpacity
+            onPress={() => {
+              setInput(resetInput());
+              onChange(null);
+            }}
+            hitSlop={8}
+          >
+            <Text style={styles.reset}>Reset to old price</Text>
+          </TouchableOpacity>
+        ) : (
+          <View />
+        )}
+        {onDone ? (
+          <TouchableOpacity style={styles.doneBtn} onPress={onDone} activeOpacity={0.85}>
+            <Text style={styles.doneText}>Done</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -168,65 +123,43 @@ const styles = StyleSheet.create({
     gap: spacing.sm + 2,
   },
   title: { fontSize: 16, fontWeight: '700', color: colors.text },
-  seg: {
-    flexDirection: 'row',
-    backgroundColor: colors.primarySoft,
-    borderRadius: radius.pill,
-    padding: 3,
-  },
-  segItem: { flex: 1, height: 38, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
-  segItemActive: { backgroundColor: colors.primary },
-  segText: { color: colors.primary, fontWeight: '600', fontSize: 13 },
-  segTextActive: { color: '#fff' },
+  fields: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  field: { flex: 1, gap: 4 },
+  fieldLabel: { fontSize: 12, color: colors.muted, fontWeight: '600' },
+  or: { color: colors.muted, fontSize: 13, paddingBottom: 14 },
   inputBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 52,
+    height: 50,
     backgroundColor: colors.bg,
     borderRadius: radius.sm,
     borderWidth: 1.5,
     borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    gap: 6,
+    paddingHorizontal: 12,
+    gap: 4,
   },
   inputBoxError: { borderColor: colors.danger },
-  input: { flex: 1, fontSize: 20, fontWeight: '700', color: colors.text },
-  affix: { fontSize: 18, fontWeight: '700', color: colors.muted },
+  input: { flex: 1, fontSize: 18, fontWeight: '800', color: colors.text, padding: 0 },
+  affix: { fontSize: 15, fontWeight: '700', color: colors.muted },
   error: { color: colors.danger, fontSize: 12, fontWeight: '600' },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primarySoft,
-  },
-  chipActive: { backgroundColor: colors.primary },
-  chipText: { color: colors.primary, fontWeight: '600', fontSize: 13 },
-  chipTextActive: { color: '#fff' },
-  scopeBox: { gap: 6 },
-  scopeLabel: { fontSize: 12, color: colors.muted, fontWeight: '600' },
-  preview: {
-    backgroundColor: colors.saleSoft,
-    borderRadius: radius.sm,
-    padding: spacing.md,
-    gap: 6,
-  },
-  pRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  pLabel: { color: colors.saleText, fontSize: 13 },
-  pValue: { color: colors.text, fontSize: 14, fontWeight: '600' },
-  pGreen: { color: colors.saleText },
-  pDivider: { height: 1, backgroundColor: '#BBF7D0' },
-  pTotalLabel: { color: colors.saleText, fontSize: 15, fontWeight: '700' },
-  pTotal: { color: colors.text, fontSize: 22, fontWeight: '800' },
-  pEach: { color: colors.saleText, fontSize: 12, textAlign: 'right' },
-  applyBtn: {
-    height: 48,
+  table: { gap: 10, backgroundColor: colors.primarySoft, borderRadius: radius.sm, padding: spacing.md },
+  tRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  tLabel: { flex: 1.3, color: colors.primary, fontSize: 13, fontWeight: '600' },
+  tCell: { flex: 1, textAlign: 'right', fontSize: 15 },
+  tHead: { fontSize: 11, color: colors.muted, fontWeight: '700' },
+  tOld: { color: colors.muted },
+  tOldStruck: { textDecorationLine: 'line-through' },
+  tNew: { color: colors.primary, fontWeight: '800', fontSize: 17 },
+  note: { fontSize: 11, color: colors.muted },
+  actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  reset: { color: colors.danger, fontWeight: '600', fontSize: 13 },
+  doneBtn: {
+    height: 44,
+    paddingHorizontal: spacing.lg * 1.5,
     borderRadius: radius.pill,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  applyBtnOff: { backgroundColor: colors.border },
-  applyText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  reset: { color: colors.danger, fontWeight: '600', fontSize: 13, textAlign: 'center' },
+  doneText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });

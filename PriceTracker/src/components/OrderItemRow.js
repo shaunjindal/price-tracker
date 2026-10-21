@@ -9,15 +9,18 @@ import { colors, radius, spacing } from '../theme';
 // Catalogue items can also get a custom discount (for THIS line only).
 // Manual items have no image and no discount.
 export default function OrderItemRow({ item, onQtyChange, onEditDiscount, onRemove }) {
-  const { product, qty, customDiscount: d } = item;
-  const { unitPrice, lineTotal, lineSavings, label, isCustom } = getLinePricing(item);
+  const { product, qty } = item;
+  const { unitPrice, lineTotal, label, kind, isCustom } = getLinePricing(item);
   const [firstKey, firstValue] = Object.entries(product.details)[0] || [];
 
-  // "4 × ₹899 − ₹100" for a flat whole-item amount, otherwise "4 × ₹749"
-  const calc =
-    d?.type === 'amount' && d.scope === 'total'
-      ? `${qty.toLocaleString('en-IN')} × ${formatPrice(product.price)} − ${formatPrice(lineSavings)}`
-      : `${qty.toLocaleString('en-IN')} × ${formatPrice(unitPrice)}`;
+  const calc = `${qty.toLocaleString('en-IN')} × ${formatPrice(unitPrice)}`;
+
+  const buttonText =
+    kind === 'price'
+      ? 'New price · Edit'
+      : kind === 'percent'
+        ? `Discount: ${label?.toLowerCase() ?? 'applied'} · Edit`
+        : '％ ₹  Change price';
 
   return (
     <View style={styles.card}>
@@ -61,7 +64,7 @@ export default function OrderItemRow({ item, onQtyChange, onEditDiscount, onRemo
           activeOpacity={0.8}
         >
           <Text style={[styles.discText, isCustom && styles.discTextActive]}>
-            {isCustom ? `Discount: ${label?.toLowerCase() ?? 'applied'} · Edit` : '％ ₹  Give discount'}
+            {buttonText}
           </Text>
         </TouchableOpacity>
       )}
@@ -87,6 +90,7 @@ const styles = StyleSheet.create({
   name: { fontSize: 14, fontWeight: '600', color: colors.text },
   sub: { fontSize: 12, color: colors.muted },
   priceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
+  wholePrice: { fontSize: 15, fontWeight: '700', color: colors.primary },
   remove: { fontSize: 16, color: colors.muted, paddingLeft: 4 },
   bottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   totalBox: { alignItems: 'flex-end' },

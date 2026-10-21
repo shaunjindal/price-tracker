@@ -18,13 +18,13 @@ export default function ProductDetailScreen({ route, navigation }) {
   // If this product is already in the order, start from its current qty/discount.
   const existing = items.find((i) => i.product.id === product.id);
   const [qty, setQty] = useState(existing?.qty ?? 1);
-  const [customDiscount, setCustomDiscount] = useState(existing?.customDiscount ?? null);
+  const [customPricing, setCustomPricing] = useState(existing?.customPricing ?? null);
 
   const entries = Object.entries(product.details);
-  const pricing = getLinePricing({ product, qty, customDiscount });
+  const pricing = getLinePricing({ product, qty, customPricing });
 
   const submit = () => {
-    setItem(product, qty, customDiscount);
+    setItem(product, qty, customPricing);
     navigation.goBack();
   };
 
@@ -37,21 +37,28 @@ export default function ProductDetailScreen({ route, navigation }) {
         </View>
         <Text style={styles.name}>{product.name}</Text>
         <PriceTag price={product.price} salePrice={pricing.unitPrice} size={26} />
-        {pricing.lineSavings > 0 && (
+        {pricing.kind === 'price' ? (
           <View style={styles.saveBox}>
             <Text style={styles.saveText}>
-              {pricing.isCustom ? 'Custom discount: ' : ''}You save {formatPrice(pricing.lineSavings)}
-              {qty > 1 ? ` on ${qty.toLocaleString('en-IN')} pcs` : ''} ({pricing.percentOff}% off)
+              New price: {formatPrice(customPricing.value)} per piece
             </Text>
           </View>
+        ) : (
+          pricing.lineSavings > 0 && (
+            <View style={styles.saveBox}>
+              <Text style={styles.saveText}>
+                You save {formatPrice(pricing.lineSavings)}
+                {qty > 1 ? ` on ${qty.toLocaleString('en-IN')} pcs` : ''} ({pricing.percentOff}% off)
+              </Text>
+            </View>
+          )
         )}
 
         <CustomDiscountPanel
           product={product}
           qty={qty}
-          value={customDiscount}
-          onApply={setCustomDiscount}
-          onReset={() => setCustomDiscount(null)}
+          value={customPricing}
+          onChange={setCustomPricing}
         />
 
         <Text style={styles.description}>{product.description}</Text>
@@ -84,12 +91,14 @@ const styles = StyleSheet.create({
   name: { fontSize: 22, fontWeight: '700', color: colors.text, marginTop: spacing.sm },
   saveBox: {
     alignSelf: 'flex-start',
-    backgroundColor: colors.saleSoft,
+    backgroundColor: colors.primarySoft,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: radius.pill,
   },
-  saveText: { color: colors.saleText, fontWeight: '700', fontSize: 13 },
+  saveText: { color: colors.primary, fontWeight: '700', fontSize: 13 },
+  wholePrice: { fontSize: 26, fontWeight: '700', color: colors.primary },
+  wholeFor: { fontSize: 15, fontWeight: '600', color: colors.muted },
   description: { color: colors.muted, fontSize: 15, lineHeight: 22 },
   section: { fontSize: 17, fontWeight: '700', color: colors.text, marginTop: spacing.md },
   card: {

@@ -6,50 +6,61 @@ export const MAX_QTY = 1000;
 
 export const round2 = (n) => Math.round(n * 100) / 100;
 
-// Pricing for one order line: { product, qty, customDiscount }
+// Pricing for one order line: { product, qty, customPricing }
 //
-// customDiscount (worker-entered, replaces the backend discount, always based on the ORIGINAL price):
-//   null
-//   { type: 'percent', value: 20 }
-//   { type: 'amount', value: 50,  scope: 'each' }    -> Rs 50 off every piece
-//   { type: 'amount', value: 100, scope: 'total' }   -> Rs 100 off the whole item (all pieces)
-// Without it the backend salePrice is used. Manual items have no discount.
-export function getLinePricing({ product, qty, customDiscount: d }) {
+// customPricing (set by the worker, replaces the backend price):
+//   null                                              -> backend salePrice is used
+//   { type: 'percent', value: 20 }                    -> 20% off the ORIGINAL price
+//   { type: 'price', value: 800,  scope: 'each' }     -> final price: Rs 800 per piece
+//   { type: 'price', value: 3200, scope: 'total' }    -> final price: Rs 3200 for the whole item
+// Manual items never have customPricing.
+export function getLinePricing({ product, qty, customPricing: cp }) {
   const price = product.price;
   const original = round2(price * qty);
   let unitPrice;
   let lineTotal;
 
-  if (d?.type === 'percent') {
-    unitPrice = applyCustomDiscount(price, d.value).salePrice;
+  if (cp?.type === 'percent') {
+    unitPrice = applyCustomDiscount(price, cp.value).salePrice;
     lineTotal = round2(unitPrice * qty);
-  } else if (d?.type === 'amount' && d.scope === 'each') {
-    unitPrice = Math.max(0, round2(price - d.value));
+  } else if (cp?.type === 'price' && cp.scope === 'total') {
+    lineTotal = round2(cp.value);
+    unitPrice = round2(cp.value / qty); // effective price per piece (display only)
+  } else if (cp?.type === 'price') {
+    unitPrice = round2(cp.value);
     lineTotal = round2(unitPrice * qty);
-  } else if (d?.type === 'amount') {
-    lineTotal = Math.max(0, round2(original - d.value));
-    unitPrice = round2(lineTotal / qty); // effective price per piece (display only)
   } else {
     unitPrice = product.salePrice ?? price;
     lineTotal = round2(unitPrice * qty);
   }
 
+  // positive = cheaper than the catalogue price, negative = dearer
   const lineSavings = round2(original - lineTotal);
   const percentOff = original > 0 ? Math.round((lineSavings / original) * 100) : 0;
 
   let label = null;
-  if (lineSavings > 0) {
-    if (d?.type === 'percent') label = `${d.value}% OFF`;
-    else if (d?.type === 'amount') label = `${formatMoney(lineSavings)} OFF`;
+  if (cp?.type === 'price') label = 'NEW PRICE';
+  else if (lineSavings > 0) {
+    if (cp?.type === 'percent') label = `${cp.value}% OFF`;
     else label = percentOff > 0 ? `${percentOff}% OFF` : `${formatMoney(lineSavings)} OFF`;
   }
 
-  return { unitPrice, lineTotal, lineSavings, percentOff, label, isCustom: Boolean(d) };
+  return { unitPrice, lineTotal, lineSavings, percentOff, label, kind: cp?.type ?? null, isCustom: Boolean(cp) };
+}
+
+// The three numbers shown in the price table, always consistent with each other:
+//   each = price per piece, total = price for the whole item, percent = % off the ORIGINAL price
+export function deriveFields(product, qty, customPricing) {
+  const p = getLinePricing({ product, qty, customPricing });
+  const original = round2(product.price * qty);
+  const percent = original > 0 ? (1 - p.lineTotal / original) * 100 : 0;
+  return { each: p.unitPrice, total: p.lineTotal, percent };
 }
 
 export const getLineTotal = (item) => getLinePricing(item).lineTotal;
 
-// original = total at original prices, payable = total after all discounts
+// original = total at catalogue prices, payable = what the customer pays.
+// savings > 0: cheaper than catalogue, savings < 0: some final prices are above the catalogue price.
 export function getOrderTotals(items) {
   let pieces = 0;
   let original = 0;
@@ -63,15 +74,14 @@ export function getOrderTotals(items) {
 }
 
 // Shape sent to the backend when messaging the order to a customer.
-// lineTotal is always sent so flat "whole item" amounts add up exactly.
+// lineTotal is always sent so a price agreed for the whole item adds up exactly.
 export const toMessageItems = (items) =>
   items.map((item) => {
     const p = getLinePricing(item);
-    const wholeItemAmount = item.customDiscount?.type === 'amount' && item.customDiscount.scope === 'total';
     return {
       name: item.product.name,
       qty: item.qty,
-      unitPrice: wholeItemAmount ? item.product.price : p.unitPrice,
+      unitPrice: p.unitPrice,
       originalUnitPrice: item.product.price,
       lineTotal: p.lineTotal,
     };

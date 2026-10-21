@@ -3,8 +3,6 @@ import { View, Text, FlatList, TouchableOpacity, Alert, StyleSheet } from 'react
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import OrderItemRow from '../components/OrderItemRow';
 import OrderSummaryCard from '../components/OrderSummaryCard';
-import CustomDiscountPanel from '../components/CustomDiscountPanel';
-import BottomSheet from '../components/BottomSheet';
 import ManualItemSheet from '../components/ManualItemSheet';
 import WhatsAppSheet from '../components/WhatsAppSheet';
 import StateView from '../components/StateView';
@@ -12,14 +10,11 @@ import { useOrder } from '../context/OrderContext';
 import { colors, radius, spacing } from '../theme';
 
 export default function OrderScreen({ navigation }) {
-  const { items, totals, setQty, setDiscount, removeItem, addManualItem, clear } = useOrder();
+  const { items, totals, setQty, removeItem, addManualItem, clear } = useOrder();
   const insets = useSafeAreaInsets();
-  const [editingId, setEditingId] = useState(null);
   const [showManual, setShowManual] = useState(false);
   const [showWhatsApp, setShowWhatsApp] = useState(false);
 
-  const editing = items.find((i) => i.product.id === editingId);
-  const closeEditor = () => setEditingId(null);
 
   const confirmClear = () =>
     Alert.alert('Clear order?', 'All items will be removed from this order.', [
@@ -38,7 +33,7 @@ export default function OrderScreen({ navigation }) {
           <OrderItemRow
             item={item}
             onQtyChange={(q) => setQty(item.product.id, q)}
-            onEditDiscount={() => setEditingId(item.product.id)}
+            onEditDiscount={() => navigation.navigate('EditPrice', { productId: item.product.id })}
             onRemove={() => removeItem(item.product.id)}
           />
         )}
@@ -73,25 +68,6 @@ export default function OrderScreen({ navigation }) {
           </View>
         </View>
       )}
-
-      <BottomSheet visible={!!editing} onClose={closeEditor} title={editing?.product.name}>
-        {editing && (
-          <CustomDiscountPanel
-            key={editing.product.id}
-            product={editing.product}
-            qty={editing.qty}
-            value={editing.customDiscount}
-            onApply={(d) => {
-              setDiscount(editing.product.id, d);
-              closeEditor();
-            }}
-            onReset={() => {
-              setDiscount(editing.product.id, null);
-              closeEditor();
-            }}
-          />
-        )}
-      </BottomSheet>
 
       <ManualItemSheet visible={showManual} onClose={() => setShowManual(false)} onAdd={addManualItem} />
 
